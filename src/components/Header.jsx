@@ -1,3 +1,5 @@
+import { APP_NAME } from '../constants/app.js'
+
 export default function Header() {
   return (
     <header className="border-b border-slate-200 bg-white">
@@ -6,7 +8,7 @@ export default function Header() {
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white">
             BG
           </div>
-          <span className="text-lg font-semibold tracking-tight">BG Remover</span>
+          <span className="text-lg font-semibold tracking-tight text-slate-900">{APP_NAME}</span>
         </div>
         <p className="hidden text-sm text-slate-500 sm:block">
           Free background removal in your browser

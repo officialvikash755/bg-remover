@@ -1,4 +1,4 @@
-export default function RefineControls({ threshold, onChange }) {
+export default function RefineControls({ threshold, onChange, disabled = false }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between gap-3">
@@ -19,8 +19,9 @@ export default function RefineControls({ threshold, onChange }) {
         max={90}
         step={5}
         value={threshold}
+        disabled={disabled}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="mt-4 h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-blue-600"
+        className="mt-4 h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
         aria-label="Background cleanup strength"
       />
 

@@ -8,6 +8,10 @@ function loadImage(src) {
 }
 
 export async function compositeBackground(foregroundBlob, background) {
+  if (!background?.type) {
+    throw new Error('Invalid background configuration')
+  }
+
   const foregroundUrl = URL.createObjectURL(foregroundBlob)
 
   try {
@@ -16,6 +20,10 @@ export async function compositeBackground(foregroundBlob, background) {
     canvas.width = foreground.naturalWidth
     canvas.height = foreground.naturalHeight
     const context = canvas.getContext('2d')
+
+    if (!context) {
+      throw new Error('Canvas is not supported in this browser')
+    }
 
     if (background.type === 'color') {
       context.fillStyle = background.value

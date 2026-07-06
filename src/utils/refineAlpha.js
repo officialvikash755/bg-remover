@@ -22,6 +22,11 @@ export async function refineAlpha(blob, threshold = 40) {
       })
 
   const context = canvas.getContext('2d')
+  if (!context) {
+    bitmap.close()
+    throw new Error('Canvas is not supported in this browser')
+  }
+
   context.drawImage(bitmap, 0, 0)
 
   const imageData = context.getImageData(0, 0, bitmap.width, bitmap.height)

@@ -7,12 +7,12 @@ import ImagePreview from './components/ImagePreview'
 import BackgroundPicker from './components/BackgroundPicker'
 import RefineControls from './components/RefineControls'
 import DownloadBar from './components/DownloadBar'
+import ErrorAlert from './components/ErrorAlert'
 import { useBackgroundRemoval } from './hooks/useBackgroundRemoval'
 import { compositeBackground, isTransparentBackground } from './utils/compositeBackground'
 import { downloadBlob } from './utils/downloadBlob'
 import { refineAlpha } from './utils/refineAlpha'
-
-const DEFAULT_THRESHOLD = 40
+import { DEFAULT_REFINE_THRESHOLD } from './constants/app.js'
 
 function revokeIfObjectUrl(url) {
   if (url?.startsWith('blob:')) {
@@ -41,10 +41,11 @@ export default function App() {
   const [previewUrl, setPreviewUrl] = useState('')
   const [downloadBlobState, setDownloadBlobState] = useState(null)
   const [uploadError, setUploadError] = useState('')
-  const [refineThreshold, setRefineThreshold] = useState(DEFAULT_THRESHOLD)
+  const [refineThreshold, setRefineThreshold] = useState(DEFAULT_REFINE_THRESHOLD)
   const [isRefining, setIsRefining] = useState(false)
 
   const hasResult = Boolean(originalUrl && rawResultBlob)
+  const activeError = uploadError || workerError
 
   const cleanupUrls = useCallback(() => {
     revokeIfObjectUrl(originalUrl)
@@ -66,7 +67,7 @@ export default function App() {
     setPreviewUrl('')
     setDownloadBlobState(null)
     setUploadError('')
-    setRefineThreshold(DEFAULT_THRESHOLD)
+    setRefineThreshold(DEFAULT_REFINE_THRESHOLD)
     resetWorker()
   }, [cleanupUrls, resetWorker])
 
@@ -77,6 +78,8 @@ export default function App() {
       return URL.createObjectURL(refinedBlob)
     })
   }, [])
+
+  useEffect(() => () => cleanupUrls(), [cleanupUrls])
 
   useEffect(() => {
     if (!resultBlob) {
@@ -96,6 +99,7 @@ export default function App() {
             return nextUrl
           })
           setDownloadBlobState(resultBlob)
+          setUploadError('')
         } else {
           URL.revokeObjectURL(nextUrl)
         }
@@ -111,6 +115,7 @@ export default function App() {
             return nextUrl
           })
           setDownloadBlobState(composite)
+          setUploadError('')
         } else {
           URL.revokeObjectURL(nextUrl)
         }
@@ -139,6 +144,7 @@ export default function App() {
         const refined = await refineAlpha(rawResultBlob, refineThreshold)
         if (!cancelled) {
           applyRefinedResult(refined)
+          setUploadError('')
         }
       } catch {
         if (!cancelled) {
@@ -170,12 +176,16 @@ export default function App() {
     setResultBlob(null)
     setResultUrl('')
     setBackground('transparent')
-    setRefineThreshold(DEFAULT_THRESHOLD)
+    setRefineThreshold(DEFAULT_REFINE_THRESHOLD)
 
     try {
       const { rawBlob } = await processImage(file)
       setRawResultBlob(rawBlob)
     } catch (error) {
+      if (error instanceof Error && error.message === 'Background removal cancelled') {
+        return
+      }
+
       revokeIfObjectUrl(nextOriginalUrl)
       setOriginalFile(null)
       setOriginalUrl('')
@@ -208,7 +218,8 @@ export default function App() {
     setBackground('transparent')
     setPreviewUrl('')
     setDownloadBlobState(null)
-    setRefineThreshold(DEFAULT_THRESHOLD)
+    setUploadError('')
+    setRefineThreshold(DEFAULT_REFINE_THRESHOLD)
   }
 
   return (
@@ -220,31 +231,60 @@ export default function App() {
           <UploadZone
             onUpload={handleUpload}
             disabled={isBusy}
-            error={uploadError || workerError}
+            error={activeError}
           />
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <ImagePreview
-              originalUrl={originalUrl}
-              resultUrl={previewUrl || resultUrl}
-              isLoading={isRefining && !resultUrl}
-            />
+          <div className="space-y-6">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900">Your Result</h1>
+                {originalFile?.name ? (
+                  <p className="mt-1 text-sm text-slate-500">{originalFile.name}</p>
+                ) : null}
+              </div>
+            </div>
 
-            <div className="flex flex-col gap-4">
-              <RefineControls threshold={refineThreshold} onChange={setRefineThreshold} />
-              <BackgroundPicker background={background} onChange={handleBackgroundChange} />
-              <DownloadBar onDownload={handleDownload} onReset={resetAll} />
-              {isRefining ? (
-                <p className="text-center text-sm text-slate-500">Updating cleanup...</p>
-              ) : null}
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <ImagePreview
+                originalUrl={originalUrl}
+                resultUrl={previewUrl || resultUrl}
+                isLoading={isRefining && !resultUrl}
+              />
+
+              <div className="flex flex-col gap-4">
+                <RefineControls
+                  threshold={refineThreshold}
+                  onChange={setRefineThreshold}
+                  disabled={isRefining}
+                />
+                <BackgroundPicker
+                  background={background}
+                  onChange={handleBackgroundChange}
+                  disabled={isRefining}
+                />
+                <DownloadBar
+                  onDownload={handleDownload}
+                  onReset={resetAll}
+                  downloadDisabled={isRefining || !downloadBlobState}
+                />
+                {isRefining ? (
+                  <p className="text-center text-sm text-slate-500">Updating cleanup...</p>
+                ) : null}
+              </div>
             </div>
           </div>
         )}
 
-        {(uploadError || workerError) && hasResult ? (
-          <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
-            {uploadError || workerError}
-          </p>
+        {activeError && hasResult ? (
+          <div className="mt-4">
+            <ErrorAlert
+              message={activeError}
+              onDismiss={() => {
+                setUploadError('')
+                resetWorker()
+              }}
+            />
+          </div>
         ) : null}
       </main>
 
