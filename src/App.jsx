@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import Header from './components/Header'
+import Footer from './components/Footer'
 import UploadZone from './components/UploadZone'
 import ProcessingOverlay from './components/ProcessingOverlay'
 import ImagePreview from './components/ImagePreview'
@@ -247,9 +248,7 @@ export default function App() {
         ) : null}
       </main>
 
-      <footer className="border-t border-slate-200 bg-white py-4 text-center text-sm text-slate-500">
-        Processed locally in your browser — images never leave your device.
-      </footer>
+      <Footer />
 
       {isBusy ? (
         <ProcessingOverlay
